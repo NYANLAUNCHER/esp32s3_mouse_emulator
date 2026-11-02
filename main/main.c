@@ -10,11 +10,6 @@
 #include "tinyusb_default_config.h"
 #include "class/hid/hid_device.h"
 
-#define PI                  3.14159265358979323846
-#define CIRCLE_RADIUS       80.0
-#define CIRCLE_SPEED        0.04
-#define UPDATE_INTERVAL_MS  10
-
 /************* TinyUSB descriptors ****************/
 #define TUSB_DESC_TOTAL_LEN      (TUD_CONFIG_DESC_LEN + CFG_TUD_HID * TUD_HID_DESC_LEN)
 const uint8_t hid_report_descriptor[] = {
@@ -62,50 +57,30 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
 
 
 static void mouse_task(void *arg) {
-    float angle = 0.0f;
-
-    int last_x = 0;
-    int last_y = 0;
-
     while (1) {
         if (tud_hid_ready()) {
+            // Press mouse
+            tud_hid_mouse_report(
+                HID_ITF_PROTOCOL_MOUSE,
+                MOUSE_BUTTON_LEFT,
+                0,0,0,0// Δx, Δy, vertical, horizontal
+            );
 
-            int x = (int)(CIRCLE_RADIUS * cosf(angle));
-            int y = (int)(CIRCLE_RADIUS * sinf(angle));
+            // Delay between reports
+            vTaskDelay(pdMS_TO_TICKS(10));
 
-            int dx = x - last_x;
-            int dy = y - last_y;
-
+            // Release mouse
             tud_hid_mouse_report(
                 HID_ITF_PROTOCOL_MOUSE,
                 0x00,
-                dx,
-                dy,
-                0,
-                0
+                0,0,0,0// Δx, Δy, vertical, horizontal
             );
-
-            last_x = x;
-            last_y = y;
-
-            angle += CIRCLE_SPEED;
-
-            if (angle >= 2.0f * PI) {
-                angle -= 2.0f * PI;
-            }
         }
-
-        vTaskDelay(pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }
 
 void app_main(void) {
-    // Initialize USB device stack
-    //tinyusb_config_t tusb_cfg = {
-    //    .device_descriptor = NULL,
-    //    .string_descriptor = NULL,
-    //    .external_phy = false,
-    //};
     tinyusb_config_t tusb_cfg = TINYUSB_DEFAULT_CONFIG();
     tusb_cfg.descriptor.device = NULL;
     tusb_cfg.descriptor.full_speed_config = hid_configuration_descriptor;
